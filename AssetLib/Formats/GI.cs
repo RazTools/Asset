@@ -83,6 +83,7 @@
                     var bundle = new Bundle(mhy0.Header, true);
                     var outputPath = Path.Combine(output, $"{pos}{Extension.Item1}");
                     bundle.InitFromMhy0(mhy0);
+                    Converter.GI.Convert(bundle);
                     bundle.WriteToFile(outputPath);
                 }
             }
