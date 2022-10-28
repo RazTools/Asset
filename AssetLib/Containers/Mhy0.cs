@@ -142,7 +142,7 @@ namespace AssetLib.Containers
                 DirectoryInfo[i] = new Node
                 {
                     Path = reader.ReadMhy0String(),
-                    IsAssetFile = reader.ReadMhy0Bool(),
+                    Flags = reader.ReadBoolean() ? 4 : 0,
                     Offset = reader.ReadMhy0Int2(),
                     Size = reader.ReadMhy0Int1()
                 };
@@ -166,7 +166,7 @@ namespace AssetLib.Containers
             foreach (var node in DirectoryInfo)
             {
                 writer.WriteMhy0String(node.Path);
-                writer.WriteMhy0Bool(node.IsAssetFile);
+                writer.Write(node.Flags != 0);
                 writer.WriteMhy0Int2((int)node.Offset);
                 writer.WriteMhy0Int1((int)node.Size);
             }

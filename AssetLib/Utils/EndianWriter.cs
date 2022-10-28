@@ -166,27 +166,8 @@
         public void WriteMhy0String(string str)
         {
             var bytes = Encoding.UTF8.GetBytes(str);
-            Array.Resize(ref bytes, 0x100);
+            Array.Resize(ref bytes, 0x105);
             Write(bytes);
-        }
-
-        public void WriteMhy0Bool(bool value)
-        {
-            var intValue = Convert.ToInt32(value);
-            var bytes = BitConverter.GetBytes(intValue);
-            if (!IsBigEndian)
-            {
-                Array.Reverse(bytes);
-            }
-
-            temp[0] = bytes[2];
-            temp[1] = bytes[0];
-            temp[2] = bytes[0];
-            temp[3] = bytes[0];
-            temp[4] = bytes[1];
-            temp[5] = bytes[3];
-
-            Write(temp, 0, 6);
         }
     }
 }

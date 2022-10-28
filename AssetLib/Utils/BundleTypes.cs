@@ -37,7 +37,6 @@ namespace AssetLib.Utils
         public long Size;
         public int Flags;
         public string Path;
-        public bool IsAssetFile;
     }
     public class StreamFile
     {

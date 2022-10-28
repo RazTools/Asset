@@ -70,16 +70,8 @@
 
         public string ReadMhy0String()
         {
-            var bytes = ReadBytes(0x100);
+            var bytes = ReadBytes(0x105);
             return Encoding.UTF8.GetString(bytes.TakeWhile(b => !b.Equals(0)).ToArray());
-        }
-
-        public bool ReadMhy0Bool()
-        {
-            int value = ReadMhy0Int2();
-            var bytes = BitConverter.GetBytes(value);
-            Array.Reverse(bytes);
-            return BitConverter.ToBoolean(bytes);
         }
         
         public byte[] ReadUInt8Array()
