@@ -44,47 +44,77 @@
 
         protected override void Decrypt(string input, string output)
         {
-            var packs = new List<PackEntry>();
-            var reader = new EndianReader(input);
+            long readSize = 0;
+            long bundleSize = 0;
+            var reader = new EndianReader(input, 0, EndianType.BigEndian);
+            var bundles = new MemoryStream();
             while (reader.Position != reader.Length)
             {
-                PackEntry pack = new();
+                var pos = reader.Position;
                 var signature = reader.ReadStringToNull(PackSignature.Length);
                 if (signature == PackSignature)
                 {
-                    pack.IsMr0k = reader.ReadBoolean();
-                    pack.BlockSize = reader.ReadInt32();
-                    pack.Data = reader.ReadBytes(pack.BlockSize);
-                    packs.Add(pack);
-                    if (pack.BlockSize >= MaxEntrySize - 0x80 && reader.Position != reader.Length)
-                        reader.Position += MaxEntrySize - 9 - pack.BlockSize;
+                    var isMr0k = reader.ReadBoolean();
+                    var blockSize = BinaryPrimitives.ReadInt32LittleEndian(reader.ReadBytes(4));
+
+                    var dataSize = blockSize;
+                    var data = reader.ReadBytes(dataSize);
+                    if (isMr0k)
+                    {
+                        data = Mr0k.Decrypt(data, ref dataSize, ExpansionKey, Key);
+                    }
+                    bundles.Write(data);
+
+                    readSize += dataSize;
+
+                    if (bundleSize == 0)
+                    {
+                        using var bundleReader = new EndianReader(data, 0, EndianType.BigEndian);
+                        var header = new Header()
+                        {
+                            Signature = bundleReader.ReadStringToNull(),
+                            Version = bundleReader.ReadUInt32(),
+                            UnityVersion = bundleReader.ReadStringToNull(),
+                            UnityRevision = bundleReader.ReadStringToNull(),
+                            Size = bundleReader.ReadInt64()
+                        };
+                        bundleSize = header.Size;
+                    }
+
+                    if (readSize % (MaxEntrySize - 0x80) == 0)
+                    {
+                        reader.Position += MaxEntrySize - 9 - blockSize;
+                    }
+
+                    if (readSize == bundleSize)
+                    {
+                        readSize = 0;
+                        bundleSize = 0;
+                    }
+
                     continue;
                 }
 
-                reader.Position -= PackSignature.Length;
-                var pos = reader.Position;
+                reader.Position = pos;
                 signature = reader.ReadStringToNull(Bundle.Signature.Length);
                 if (signature == Bundle.Signature)
                 {
-                    var tempData = reader.ReadBytes(MaxEntrySize - 0x80);
-                    var UnityFSBlock = tempData.Search(Bundle.Signature);
-                    var PackBlock = tempData.Search(PackSignature);
-                    var firstMatch = Math.Min(UnityFSBlock, PackBlock);
-                    if (UnityFSBlock == int.MaxValue && PackBlock == int.MaxValue)
-                        pack.BlockSize = (int)reader.Length;
-                    else
-                        pack.BlockSize = firstMatch + signature.Length;
+                    var header = new Header()
+                    {
+                        Signature = reader.ReadStringToNull(),
+                        Version = reader.ReadUInt32(),
+                        UnityVersion = reader.ReadStringToNull(),
+                        UnityRevision = reader.ReadStringToNull(),
+                        Size = reader.ReadInt64()
+                    };
+
                     reader.Position = pos;
-                    pack.Data = reader.ReadBytes(pack.BlockSize);
-                    pack.IsMr0k = false;
-                    packs.Add(pack);
+                    bundles.Write(reader.ReadBytes((int)header.Size));
                     continue;
                 }
                 throw new InvalidOperationException($"Expected signature {PackSignature} or {Bundle.Signature}, got {signature} instead !!");
             }
-            packs.ForEach(x => x.DecryptMr0k());
-            var buffer = packs.SelectMany(x => x.Data).ToArray();
-            reader = new EndianReader(buffer, 0, EndianType.BigEndian);
+            reader = new EndianReader(bundles, 0, EndianType.BigEndian);
             var i = 0;
             while (reader.Remaining > 0)
             {
@@ -116,21 +146,6 @@
         protected override void Encrypt(string input, string output)
         {
             throw new NotImplementedException();
-        }
-
-        public class PackEntry
-        {
-            public bool IsMr0k;
-            public int BlockSize;
-            public byte[] Data;
-
-            public void DecryptMr0k()
-            {
-                if (IsMr0k)
-                {
-                    Data = Mr0k.Decrypt(Data, ref BlockSize, ExpansionKey, Key);
-                }
-            }
         }
     }
 }
